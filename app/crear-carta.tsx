@@ -3,13 +3,13 @@ import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function CrearCarta() {
@@ -159,11 +159,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#050805",
     padding: 20,
-    paddingTop: 50,
   },
 
   title: {
-    paddingTop: 102,
+    paddingTop: 25,
     color: "#00ff88",
     fontSize: 25,
     fontWeight: "bold",
@@ -222,7 +221,7 @@ const styles = StyleSheet.create({
   },
   cancelTop: {
     position: "absolute",
-    top: 50,
+    top: 8,
     left: 20,
     zIndex: 10,
   },

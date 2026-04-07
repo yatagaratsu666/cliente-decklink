@@ -1,46 +1,32 @@
-import { AuthContext } from "@/src/service/auth";
 import { eliminarCarta, getCartas } from "@/src/service/cartas";
 import { Carta } from "@/src/types/carta";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import CartaModal from "./cartaModal";
 
 export default function Home() {
-  const { logout } = useContext(AuthContext);
-
   const [cartas, setCartas] = useState<Carta[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [selectedCarta, setSelectedCarta] = useState<Carta | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
+  const router = useRouter();
+
   useEffect(() => {
     cargarCartas();
   }, []);
-
-  const handleLogout = () => {
-    Alert.alert("Cerrar sesión", "¿Quieres salir?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Salir",
-        onPress: () => {
-          logout();
-          router.replace("/");
-        },
-      },
-    ]);
-  };
 
   const cargarCartas = async () => {
     try {
@@ -53,16 +39,6 @@ export default function Home() {
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#00ff88" />
-      </View>
-    );
-  }
-
-  const router = useRouter();
-
   const handleEliminar = (id: number) => {
     Alert.alert("Eliminar carta", "¿Estás seguro de eliminar esta carta?", [
       { text: "Cancelar", style: "cancel" },
@@ -71,11 +47,9 @@ export default function Home() {
         onPress: async () => {
           try {
             await eliminarCarta(id);
-
             setCartas((prev) => prev.filter((c) => c.id_carta !== id));
-
             setModalVisible(false);
-          } catch (error) {
+          } catch {
             Alert.alert("Error", "No se pudo eliminar");
           }
         },
@@ -83,24 +57,26 @@ export default function Home() {
     ]);
   };
 
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#00ff88" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={25} color="#00ff88" />
+      <View style={styles.topSection}>
+        <Text style={styles.title}>Mi inventario</Text>
+
+        <TouchableOpacity
+          style={styles.lotesBtn}
+          onPress={() => router.push("/lotes" as any)}
+        >
+          <Ionicons name="layers-outline" size={20} color="#000" />
+          <Text style={styles.lotesText}>Lotes</Text>
         </TouchableOpacity>
-
-        <View style={styles.logoContainer}>
-          <Image
-            source={require("../assets/images/decklink-logo.png")}
-            style={styles.logoImage}
-          />
-          <Text style={styles.logo}>DECKLINK</Text>
-        </View>
-
-        <View style={styles.headerRight}>
-          <Ionicons name="search" size={25} color="#00ff88" />
-        </View>
       </View>
 
       {cartas.length === 0 ? (
@@ -139,72 +115,21 @@ export default function Home() {
           )}
         />
       )}
+
       <TouchableOpacity
         style={styles.fab}
         onPress={() => router.push("/crear-carta")}
       >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            {selectedCarta && (
-              <>
-                <Image
-                  source={{ uri: selectedCarta.imagen }}
-                  style={styles.modalImage}
-                />
 
-                <Text style={styles.modalTitle}>{selectedCarta.nombre}</Text>
-
-                <Text style={styles.modalText}>
-                  Categoría: {selectedCarta.categoria}
-                </Text>
-
-                <Text style={styles.modalText}>
-                  Rareza: {selectedCarta.rareza}
-                </Text>
-
-                <Text style={styles.modalText}>
-                  Estado: {selectedCarta.estado}
-                </Text>
-
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity style={styles.editBtn}>
-                    <Text
-                      style={styles.editText}
-                      onPress={() => {
-                        setModalVisible(false);
-
-                        router.push({
-                          pathname: "/crear-carta",
-                          params: { carta: JSON.stringify(selectedCarta) },
-                        });
-                      }}
-                    >
-                      Modificar
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.deleteBtn}
-                    onPress={() => handleEliminar(selectedCarta!.id_carta)}
-                  >
-                    <Text style={styles.deleteText}>Eliminar</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.closeIcon}
-                  onPress={() => setModalVisible(false)}
-                >
-                  <Text style={styles.closeX}>×</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <CartaModal
+        visible={modalVisible}
+        carta={selectedCarta}
+        onClose={() => setModalVisible(false)}
+        onEliminar={handleEliminar}
+        modo="inventario"
+      />
     </View>
   );
 }
@@ -214,7 +139,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#050805",
     paddingHorizontal: 10,
-    paddingTop: 35,
+    paddingTop: 15,
   },
 
   center: {
@@ -222,23 +147,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#050805",
-  },
-
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#00ff8830",
-    paddingBottom: 15,
-    paddingTop: 15,
-  },
-
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
   },
 
   card: {
@@ -314,6 +222,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginTop: -2,
   },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.8)",
@@ -443,5 +352,33 @@ const styles = StyleSheet.create({
     fontSize: 25,
     fontWeight: "bold",
     letterSpacing: 2,
+  },
+
+  topSection: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+
+  title: {
+    color: "#00ff88",
+    fontSize: 22,
+    fontWeight: "bold",
+  },
+
+  lotesBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#00ff88",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 5,
+  },
+
+  lotesText: {
+    color: "#000",
+    fontWeight: "bold",
   },
 });
