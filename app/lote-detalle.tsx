@@ -20,7 +20,7 @@ import {
 import CartaModal from "./cartaModal";
 
 export default function LoteDetalle() {
-  const { id } = useLocalSearchParams();
+  const { id, nombre } = useLocalSearchParams();
   const loteId = Number(id);
   const router = useRouter();
 
@@ -76,7 +76,7 @@ export default function LoteDetalle() {
   return (
     <View style={styles.container}>
       <View style={styles.topSection}>
-        <Text style={styles.title}>Cartas del lote</Text>
+        <Text style={styles.title}>{nombre}</Text>
 
         <TouchableOpacity style={styles.lotesBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color="#000" />

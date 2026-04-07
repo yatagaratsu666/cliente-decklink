@@ -105,7 +105,13 @@ export default function Lotes() {
             <TouchableOpacity
               style={styles.loteCard}
               onPress={() =>
-                router.push(`/lote-detalle?id=${item.id_lote}` as any)
+                router.push({
+                  pathname: "/lote-detalle",
+                  params: {
+                    id: item.id_lote,
+                    nombre: item.nombre,
+                  },
+                } as any)
               }
               onLongPress={() => abrirEditar(item)}
             >
