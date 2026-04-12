@@ -21,7 +21,10 @@ import CartaModal from "./cartaModal";
 
 export default function LoteDetalle() {
   const { id, nombre } = useLocalSearchParams();
+
   const loteId = Number(id);
+  const nombreLote = Array.isArray(nombre) ? nombre[0] : nombre;
+
   const router = useRouter();
 
   const [cartas, setCartas] = useState<Carta[]>([]);
@@ -31,12 +34,18 @@ export default function LoteDetalle() {
   const [selectedCarta, setSelectedCarta] = useState<Carta | null>(null);
 
   useEffect(() => {
-    cargarCartas();
-  }, []);
+    if (!isNaN(loteId)) {
+      cargarCartas();
+    }
+  }, [loteId]);
 
   const cargarCartas = async () => {
-    const data = await getCartasLote(loteId);
-    setCartas(data);
+    try {
+      const data = await getCartasLote(loteId);
+      setCartas(data);
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const abrirModal = async () => {
@@ -52,13 +61,17 @@ export default function LoteDetalle() {
   };
 
   const agregarSeleccionadas = async () => {
-    for (const id_carta of selected) {
-      await agregarCartaLote(loteId, id_carta);
-    }
+    try {
+      for (const id_carta of selected) {
+        await agregarCartaLote(loteId, id_carta);
+      }
 
-    setModalVisible(false);
-    setSelected([]);
-    cargarCartas();
+      setModalVisible(false);
+      setSelected([]);
+      cargarCartas();
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const quitarDelLote = async (idCarta: number) => {
@@ -76,7 +89,7 @@ export default function LoteDetalle() {
   return (
     <View style={styles.container}>
       <View style={styles.topSection}>
-        <Text style={styles.title}>{nombre}</Text>
+        <Text style={styles.title}>{nombreLote}</Text>
 
         <TouchableOpacity style={styles.lotesBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color="#000" />
@@ -102,11 +115,11 @@ export default function LoteDetalle() {
               style={styles.card}
               onPress={() => setSelectedCarta(item)}
             >
-              <Image source={{ uri: item.imagen }} style={styles.image} />
+              <Image source={{ uri: item.imagen_url }} style={styles.image} />
 
               <View style={styles.info}>
                 <Text style={styles.name}>{item.nombre}</Text>
-                <Text style={styles.category}>{item.categoria}</Text>
+                <Text style={styles.category}>{item.juego}</Text>
                 <Text style={styles.rareza}>{item.rareza}</Text>
               </View>
             </TouchableOpacity>
@@ -122,8 +135,8 @@ export default function LoteDetalle() {
         visible={!!selectedCarta}
         carta={selectedCarta}
         onClose={() => setSelectedCarta(null)}
-        onEliminar={quitarDelLote}
         modo="lote"
+        onEliminar={(idCarta) => quitarDelLote(idCarta)}
       />
 
       <Modal visible={modalVisible} animationType="slide">
@@ -147,7 +160,10 @@ export default function LoteDetalle() {
                   ]}
                   onPress={() => toggleSeleccion(item.id_carta)}
                 >
-                  <Image source={{ uri: item.imagen }} style={styles.image} />
+                  <Image
+                    source={{ uri: item.imagen_url }}
+                    style={styles.image}
+                  />
 
                   <View style={styles.info}>
                     <Text style={styles.name}>{item.nombre}</Text>

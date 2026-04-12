@@ -39,16 +39,21 @@ export default function Home() {
     }
   };
 
-  const handleEliminar = (id: number) => {
+  const handleEliminar = (id: string | number) => {
     Alert.alert("Eliminar carta", "¿Estás seguro de eliminar esta carta?", [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Eliminar",
         onPress: async () => {
           try {
-            await eliminarCarta(id);
-            setCartas((prev) => prev.filter((c) => c.id_carta !== id));
+            await eliminarCarta(Number(id));
+
+            setCartas((prev) =>
+              prev.filter((c) => String(c.id_carta) !== String(id)),
+            );
+
             setModalVisible(false);
+            setSelectedCarta(null);
           } catch {
             Alert.alert("Error", "No se pudo eliminar");
           }
@@ -92,7 +97,7 @@ export default function Home() {
       ) : (
         <FlatList
           data={cartas}
-          keyExtractor={(item) => item.id_carta.toString()}
+          keyExtractor={(item) => String(item.id_carta)}
           numColumns={2}
           columnWrapperStyle={{ justifyContent: "space-between" }}
           showsVerticalScrollIndicator={false}
@@ -104,12 +109,18 @@ export default function Home() {
                 setModalVisible(true);
               }}
             >
-              <Image source={{ uri: item.imagen }} style={styles.image} />
+              <Image
+                source={{ uri: item.imagen_url || "" }}
+                style={styles.image}
+              />
 
               <View style={styles.info}>
                 <Text style={styles.name}>{item.nombre}</Text>
-                <Text style={styles.category}>{item.categoria}</Text>
+                <Text style={styles.category}>{item.juego}</Text>
                 <Text style={styles.rareza}>{item.rareza}</Text>
+                <Text style={styles.tipo}>
+                  {item.tipo?.join(", ") || "Sin tipo"}
+                </Text>
               </View>
             </TouchableOpacity>
           )}
@@ -126,7 +137,10 @@ export default function Home() {
       <CartaModal
         visible={modalVisible}
         carta={selectedCarta}
-        onClose={() => setModalVisible(false)}
+        onClose={() => {
+          setModalVisible(false);
+          setSelectedCarta(null);
+        }}
         onEliminar={handleEliminar}
         modo="inventario"
       />
@@ -380,5 +394,10 @@ const styles = StyleSheet.create({
   lotesText: {
     color: "#000",
     fontWeight: "bold",
+  },
+  tipo: {
+    color: "#888",
+    fontSize: 10,
+    marginTop: 2,
   },
 });

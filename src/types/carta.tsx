@@ -1,10 +1,9 @@
-export interface Carta {
+import { BaseCarta } from "./baseCarta";
+
+export interface Carta extends BaseCarta {
   id_carta: number;
-  nombre: string;
-  categoria: string;
-  rareza: string;
-  estado: string;
-  imagen: string;
-  id_usuario: number;
-  publicada: boolean;
+}
+
+export interface CartaMongo extends BaseCarta {
+  id_carta: string;
 }

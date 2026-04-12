@@ -1,9 +1,11 @@
-import { actualizarCarta, crearCarta } from "@/src/service/cartas";
-import * as ImagePicker from "expo-image-picker";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { buscarCartasMongo, crearCarta } from "@/src/service/cartas";
+import { CartaMongo } from "@/src/types/carta";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
 import {
   Alert,
+  FlatList,
   Image,
   StyleSheet,
   Text,
@@ -11,146 +13,152 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function CrearCarta() {
+export default function BuscarCarta() {
   const router = useRouter();
 
-  const [nombre, setNombre] = useState("");
-  const [categoria, setCategoria] = useState("");
-  const [rareza, setRareza] = useState("");
-  const [estado, setEstado] = useState("");
-  const [imagen, setImagen] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [resultados, setResultados] = useState<CartaMongo[]>([]);
+  const [selected, setSelected] = useState<Record<string, number>>({});
 
-  const params = useLocalSearchParams();
-  const cartaEdit = params.carta ? JSON.parse(params.carta as string) : null;
+  const buscar = async (text: string) => {
+    setQuery(text);
 
-  const isEditing = !!cartaEdit;
-
-  useEffect(() => {
-    if (cartaEdit) {
-      setNombre(cartaEdit.nombre);
-      setCategoria(cartaEdit.categoria);
-      setRareza(cartaEdit.rareza);
-      setEstado(cartaEdit.estado);
-      setImagen(cartaEdit.imagen);
-    }
-  }, []);
-
-  const seleccionarImagen = async () => {
-    const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permiso.granted) {
-      Alert.alert("Permiso requerido", "Debes permitir acceso a galería");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      base64: true,
-      quality: 0.7,
-    });
-
-    if (!result.canceled) {
-      const base64 = result.assets[0].base64;
-
-      setImagen(`data:image/jpeg;base64,${base64}`);
-    }
-  };
-
-  const handleGuardar = async () => {
-    if (!nombre || !categoria || !rareza || !estado || !imagen) {
-      Alert.alert("Error", "Todos los campos son obligatorios");
+    if (text.length < 4) {
+      setResultados([]);
       return;
     }
 
     try {
-      if (isEditing) {
-        await actualizarCarta(cartaEdit.id_carta, {
-          nombre,
-          categoria,
-          rareza,
-          estado,
-          imagen,
-        });
+      const data = await buscarCartasMongo(text);
+      setResultados(data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
-        Alert.alert("Éxito", "Carta actualizada");
-      } else {
-        await crearCarta({
-          nombre,
-          categoria,
-          rareza,
-          estado,
-          imagen,
-        });
+  const agregar = (id: string) => {
+    setSelected((prev) => ({
+      ...prev,
+      [id]: (prev[id] || 0) + 1,
+    }));
+  };
 
-        Alert.alert("Éxito", "Carta creada");
+  const quitar = (id: string) => {
+    setSelected((prev) => {
+      const nuevo = { ...prev };
+
+      if (!nuevo[id]) return prev;
+
+      nuevo[id]--;
+
+      if (nuevo[id] <= 0) delete nuevo[id];
+
+      return nuevo;
+    });
+  };
+
+  const guardar = async () => {
+    try {
+      const seleccionadas = resultados.filter((c) => selected[c.id_carta]);
+
+      for (const carta of seleccionadas) {
+        const cantidad = selected[carta.id_carta];
+
+        for (let i = 0; i < cantidad; i++) {
+          await crearCarta({
+            nombre: carta.nombre,
+            juego: carta.juego,
+            edicion: carta.edicion,
+            numero: carta.numero,
+            rareza: carta.rareza,
+            imagen_url: carta.imagen_url,
+            descripcion: carta.descripcion,
+            tipo: carta.tipo,
+          });
+        }
       }
 
+      Alert.alert("Éxito", "Cartas agregadas");
       router.replace("/home");
     } catch (error) {
-      Alert.alert("Error", "No se pudo guardar");
+      Alert.alert("Error", "No se pudieron agregar");
     }
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.cancelTop}
-        onPress={() => router.replace("/home")}
-      >
-        <Text style={styles.cancelTopText}>×</Text>
-      </TouchableOpacity>
-      <Text style={styles.title}>
-        {isEditing ? "Editar Carta" : "Nueva Carta"}
-      </Text>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <View style={{ flex: 1 }}>
+        <View style={styles.topSection}>
+          <Text style={styles.title}>Buscar Carta</Text>
 
-      <View style={styles.formContainer}>
-        <TextInput
-          placeholder="Nombre"
-          placeholderTextColor="#888"
-          style={styles.input}
-          value={nombre}
-          onChangeText={setNombre}
-        />
+          <TouchableOpacity
+            style={styles.lotesBtn}
+            onPress={() => router.replace("/home")}
+          >
+            <Ionicons name="arrow-back" size={20} color="#000" />
+            <Text style={styles.lotesText}>Volver</Text>
+          </TouchableOpacity>
+        </View>
 
         <TextInput
-          placeholder="Categoría"
+          placeholder="Escribe al menos 4 letras..."
           placeholderTextColor="#888"
           style={styles.input}
-          value={categoria}
-          onChangeText={setCategoria}
+          value={query}
+          onChangeText={buscar}
         />
 
-        <TextInput
-          placeholder="Rareza"
-          placeholderTextColor="#888"
-          style={styles.input}
-          value={rareza}
-          onChangeText={setRareza}
+        <FlatList
+          data={resultados}
+          keyExtractor={(item) => item.id_carta}
+          numColumns={2}
+          columnWrapperStyle={{ justifyContent: "space-between" }}
+          contentContainerStyle={{ paddingBottom: 100 }} // 👈 espacio para FAB
+          renderItem={({ item }) => {
+            const id = item.id_carta;
+            const count = selected[id] || 0;
+
+            return (
+              <View style={styles.card}>
+                <Image source={{ uri: item.imagen_url }} style={styles.image} />
+
+                <View style={styles.content}>
+                  <Text style={styles.name}>{item.nombre}</Text>
+
+                  <Text style={styles.tipo}>{item.tipo?.join(" • ")}</Text>
+
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      style={styles.actionBtn}
+                      onPress={() => quitar(id)}
+                    >
+                      <Text style={styles.btn}>-</Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.count}>{count}</Text>
+
+                    <TouchableOpacity
+                      style={styles.actionBtn}
+                      onPress={() => agregar(id)}
+                    >
+                      <Text style={styles.btn}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            );
+          }}
         />
 
-        <TextInput
-          placeholder="Estado"
-          placeholderTextColor="#888"
-          style={styles.input}
-          value={estado}
-          onChangeText={setEstado}
-        />
+        {Object.keys(selected).length > 0 && (
+          <TouchableOpacity style={styles.fab} onPress={guardar}>
+            <Text style={styles.fabText}>+</Text>
+          </TouchableOpacity>
+        )}
       </View>
-
-      <TouchableOpacity style={styles.imagePicker} onPress={seleccionarImagen}>
-        {imagen && <Image source={{ uri: imagen }} style={styles.preview} />}
-
-        <Text style={styles.imageText}>
-          {imagen ? "Cambiar imagen" : "Seleccionar imagen"}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.button} onPress={handleGuardar}>
-        <Text style={styles.buttonText}>
-          {isEditing ? "Actualizar Carta" : "Crear Carta"}
-        </Text>
-      </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -158,81 +166,141 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#050805",
-    padding: 20,
+    paddingHorizontal: 10,
   },
 
-  title: {
-    paddingTop: 25,
-    color: "#00ff88",
-    fontSize: 25,
+  card: {
+    backgroundColor: "#0d140f",
+    width: "48%",
+    borderRadius: 14,
+    marginBottom: 15,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#00ff8830",
+    shadowColor: "#00ff88",
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+
+  image: {
+    margin: 10,
+    width: "100%",
+    height: 200,
+    borderRadius: 10,
+    aspectRatio: 0.7,
+    resizeMode: "cover",
+  },
+
+  content: {
+    flex: 1,
+    paddingBottom: 10,
+  },
+
+  name: {
+    color: "#fff",
+    fontSize: 14,
     fontWeight: "bold",
-    marginBottom: 20,
+    paddingLeft: 10,
+  },
+
+  tipo: {
+    color: "#888",
+    fontSize: 10,
+    marginTop: 2,
+    paddingLeft: 10,
+    marginRight: 10,
+  },
+
+  actions: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: "auto",
+    gap: 20,
+  },
+
+  actionBtn: {
+    marginTop: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "#0f2a1d",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#00ff8850",
+  },
+
+  btn: {
+    color: "#00ff88",
+    fontSize: 22,
+    fontWeight: "bold",
+  },
+
+  count: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    minWidth: 20,
     textAlign: "center",
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(97, 142, 97, 0.32)",
   },
 
   input: {
     backgroundColor: "#0d140f",
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
     color: "#fff",
     fontSize: 15,
     borderWidth: 1,
     borderColor: "#00ff8830",
+    marginBottom: 12,
   },
 
-  imagePicker: {
-    backgroundColor: "#0d140f",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#00ff8830",
-  },
-
-  imageText: {
-    color: "#00ff88",
-    fontWeight: "bold",
-  },
-
-  preview: {
-    width: 85,
-    height: 85,
-    borderRadius: 50,
-    marginBottom: 10,
-  },
-
-  button: {
-    backgroundColor: "#00ff88",
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
-  },
-
-  buttonText: {
-    color: "#000",
-    textAlign: "center",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  cancelTop: {
+  fab: {
     position: "absolute",
-    top: 8,
+    bottom: 20, // 👈 dinámico y correcto
     left: 20,
-    zIndex: 10,
+    width: 60,
+    height: 60,
+    borderRadius: 50,
+    backgroundColor: "#00ff88",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
-  cancelTopText: {
-    color: "#00ff88",
-    fontSize: 35,
+  fabText: {
+    color: "#000",
+    fontSize: 30,
     fontWeight: "bold",
   },
 
-  formContainer: {
-    marginTop: 5,
+  topSection: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+
+  title: {
+    color: "#00ff88",
+    fontSize: 22,
+    fontWeight: "bold",
+  },
+
+  lotesBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#00ff88",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 5,
+  },
+
+  lotesText: {
+    color: "#000",
+    fontWeight: "bold",
   },
 });
