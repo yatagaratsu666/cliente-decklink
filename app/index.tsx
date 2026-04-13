@@ -2,13 +2,13 @@ import { AuthContext } from "@/src/service/auth";
 import { useRouter } from "expo-router";
 import React, { useContext, useState } from "react";
 import {
-  Alert,
-  Image,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 const LoginScreen: React.FC = () => {
@@ -27,7 +27,7 @@ const LoginScreen: React.FC = () => {
 
     try {
       await login(email, contrasena);
-      router.replace("/home");
+      router.replace("/inicio");
     } catch {
       Alert.alert("Error", "Credenciales inválidas");
     }

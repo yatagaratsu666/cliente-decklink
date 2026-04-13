@@ -3,13 +3,13 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Image,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function RegisterScreen() {
@@ -30,7 +30,9 @@ export default function RegisterScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       base64: true,
-      quality: 0.7,
+      quality: 0.4,
+      allowsEditing: true,
+      aspect: [1, 1],
     });
 
     if (!result.canceled) {

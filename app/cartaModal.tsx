@@ -29,7 +29,7 @@ export default function CartaModal({
 
   if (!carta) return null;
 
-  const id = "id_carta" in carta ? carta.id_carta : carta.id;
+  const id = "id_carta" in carta ? carta.id_carta : carta.id_publicacion;
 
   const abrirPublicar = () => {
     setPrecio("");
@@ -60,6 +60,16 @@ export default function CartaModal({
     }
   };
 
+  const formatearFecha = (fecha: string) => {
+    const date = new Date(fecha);
+
+    return date.toLocaleDateString("es-CO", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
   return (
     <>
       <Modal visible={visible} animationType="slide" transparent>
@@ -74,7 +84,6 @@ export default function CartaModal({
 
             {modo === "publicado" && (
               <>
-                {/* USUARIO (bloque separado a la derecha) */}
                 {"usuario" in carta && carta.usuario && (
                   <View style={styles.userBlockRight}>
                     <Image
@@ -97,11 +106,16 @@ export default function CartaModal({
                 {"precio" in carta && (
                   <Text style={styles.precio}>${carta.precio ?? 0}</Text>
                 )}
+
+                {"fecha_publicacion" in carta && (
+                  <Text style={styles.fecha}>
+                    {formatearFecha(carta.fecha_publicacion)}
+                  </Text>
+                )}
               </>
             )}
 
             <View style={styles.infoBox}>
-              {/* INFO CARTA (IZQUIERDA) */}
               {"juego" in carta && carta.juego && (
                 <Text style={styles.modalText}>Juego: {carta.juego}</Text>
               )}
@@ -135,9 +149,7 @@ export default function CartaModal({
               </View>
             )}
 
-            {/* ================= BOTONES ================= */}
             <View style={styles.modalButtons}>
-              {/* PUBLICAR */}
               {modo === "inventario" && (
                 <TouchableOpacity
                   style={styles.editBtn}
@@ -147,7 +159,6 @@ export default function CartaModal({
                 </TouchableOpacity>
               )}
 
-              {/* ELIMINAR */}
               {onEliminar && modo === "inventario" && (
                 <TouchableOpacity
                   style={styles.deleteBtn}
@@ -157,7 +168,6 @@ export default function CartaModal({
                 </TouchableOpacity>
               )}
 
-              {/* MARKETPLACE */}
               {modo === "publicado" && (
                 <View style={styles.marketButtons}>
                   <TouchableOpacity style={styles.buyBtn}>
@@ -170,7 +180,6 @@ export default function CartaModal({
                 </View>
               )}
 
-              {/* BUSQUEDA */}
               {modo === "busqueda" && (
                 <View style={styles.counterBox}>
                   <TouchableOpacity onPress={() => onQuitar?.(id)}>
@@ -195,7 +204,6 @@ export default function CartaModal({
               )}
             </View>
 
-            {/* CERRAR */}
             <TouchableOpacity style={styles.closeIcon} onPress={onClose}>
               <Text style={styles.closeX}>×</Text>
             </TouchableOpacity>
@@ -203,7 +211,6 @@ export default function CartaModal({
         </View>
       </Modal>
 
-      {/* ================= MODAL PRECIO ================= */}
       <Modal visible={precioModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.priceModal}>
@@ -511,5 +518,10 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "flex-start",
     marginTop: 10,
+  },
+  fecha: {
+    color: "#ffffff70",
+    fontSize: 12,
+    alignSelf: "flex-start",
   },
 });

@@ -5,14 +5,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import CartaModal from "./cartaModal";
 
@@ -35,10 +35,10 @@ export default function Publicados() {
       setLoading(true);
 
       const publicaciones = await getPublicaciones();
+
       setData(publicaciones);
 
       const map: Record<number, User> = {};
-
       setUsuarios(map);
     } catch (error) {
       console.log(error);
@@ -55,27 +55,34 @@ export default function Publicados() {
     );
   }
 
+  const formatearFecha = (fecha: string) => {
+    const date = new Date(fecha);
+
+    return date.toLocaleDateString("es-CO", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
         data={data}
-        keyExtractor={(item) => String(item.id)}
+        keyExtractor={(item) => String(item.id_publicacion)}
         numColumns={2}
         columnWrapperStyle={{ justifyContent: "space-between" }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 20 }}
         ListHeaderComponent={
           <>
-            {/* HEADER */}
             <View style={styles.topSection}>
               <Text style={styles.title}>Publicados</Text>
             </View>
 
-            {/* SEARCH + FILTER BAR */}
             <View style={styles.searchContainer}>
               <View style={styles.searchBox}>
                 <Ionicons name="search" size={18} color="#00ff88" />
-
                 <TextInput
                   placeholder="Buscar cartas..."
                   placeholderTextColor="#666"
@@ -124,6 +131,9 @@ export default function Publicados() {
               {item.rareza && <Text style={styles.rareza}>{item.rareza}</Text>}
 
               <Text style={styles.precio}>${item.precio ?? 0}</Text>
+              <Text style={styles.fecha}>
+                {formatearFecha(item.fecha_publicacion)}
+              </Text>
             </TouchableOpacity>
           );
         }}
@@ -285,5 +295,11 @@ const styles = StyleSheet.create({
 
     backgroundColor: "#00ff88",
     borderRadius: 12,
+  },
+  fecha: {
+    color: "#ffffff70",
+    fontSize: 11,
+    paddingHorizontal: 8,
+    marginBottom: 8,
   },
 });
