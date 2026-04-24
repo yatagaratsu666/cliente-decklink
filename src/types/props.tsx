@@ -17,4 +17,6 @@ export interface Props {
   onQuitar?: (id: string | number) => void;
 
   cantidad?: number;
+
+  esPropia?: boolean;
 }

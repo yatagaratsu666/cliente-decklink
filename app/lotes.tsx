@@ -1,20 +1,22 @@
 import {
-    actualizarLote,
-    crearLote,
-    eliminarLote,
-    getLotes,
+  actualizarLote,
+  crearLote,
+  eliminarLote,
+  getLotes,
+  publicarLote,
 } from "@/src/service/lote";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    FlatList,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function Lotes() {
@@ -25,7 +27,46 @@ export default function Lotes() {
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [loteSeleccionado, setLoteSeleccionado] = useState<any>(null);
 
+  const [modalPublicar, setModalPublicar] = useState(false);
+  const [precio, setPrecio] = useState("");
+
   const [modo, setModo] = useState<"crear" | "editar">("crear");
+
+  useEffect(() => {
+    cargarLotes();
+  }, []);
+
+  const abrirPublicar = (lote: any) => {
+    setLoteSeleccionado(lote);
+    setPrecio("");
+    setModalPublicar(true);
+  };
+
+  const confirmarPublicacion = async () => {
+    try {
+      if (!precio || isNaN(Number(precio))) {
+        alert("Ingresa un precio válido");
+        return;
+      }
+
+      await publicarLote(loteSeleccionado.id_lote, Number(precio));
+
+      setModalPublicar(false);
+      setLoteSeleccionado(null);
+
+      alert("Lote publicado :3");
+    } catch (error: any) {
+      if (error.response?.data?.error === "conflicto_publicacion") {
+        Alert.alert(
+          "No permitido",
+          "Alguna carta del lote ya está publicada individualmente",
+        );
+      } else {
+        console.log(error);
+        Alert.alert("Error", "No se pudo publicar el lote");
+      }
+    }
+  };
 
   useEffect(() => {
     cargarLotes();
@@ -102,21 +143,43 @@ export default function Lotes() {
           data={lotes}
           keyExtractor={(item) => item.id_lote.toString()}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.loteCard}
-              onPress={() =>
-                router.push({
-                  pathname: "/lote-detalle",
-                  params: {
-                    id: item.id_lote,
-                    nombre: item.nombre,
-                  },
-                } as any)
-              }
-              onLongPress={() => abrirEditar(item)}
-            >
-              <Text style={styles.loteName}>{item.nombre}</Text>
-            </TouchableOpacity>
+            <View style={styles.loteCard}>
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/lote-detalle",
+                    params: {
+                      id: item.id_lote,
+                      nombre: item.nombre,
+                    },
+                  } as any)
+                }
+              >
+                <Text style={styles.loteName}>{item.nombre}</Text>
+
+                <Text style={styles.loteCantidad}>
+                  {item.total_cartas || 0} cartas
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={() => abrirEditar(item)}
+                >
+                  <Ionicons name="create-outline" size={16} color="#00ff88" />
+                  <Text style={styles.actionText}>Editar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.publicarAction]}
+                  onPress={() => abrirPublicar(item)}
+                >
+                  <Ionicons name="rocket-outline" size={16} color="#000" />
+                  <Text style={styles.publicarActionText}>Publicar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
         />
       )}
@@ -156,6 +219,33 @@ export default function Lotes() {
             )}
 
             <TouchableOpacity onPress={() => setModalEditar(false)}>
+              <Text style={styles.cancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={modalPublicar} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Publicar lote</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Precio"
+              placeholderTextColor="#777"
+              keyboardType="numeric"
+              value={precio}
+              onChangeText={setPrecio}
+            />
+
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={confirmarPublicacion}
+            >
+              <Text style={styles.saveText}>Publicar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setModalPublicar(false)}>
               <Text style={styles.cancelText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
@@ -331,5 +421,61 @@ const styles = StyleSheet.create({
   deleteText: {
     color: "#00ff88",
     textAlign: "center",
+  },
+
+  publicarBtn: {
+    marginTop: 10,
+    backgroundColor: "#0f2a1d",
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#00ff8850",
+  },
+
+  publicarText: {
+    color: "#000",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+  loteCantidad: {
+    color: "#888",
+    fontSize: 13,
+    marginTop: 3,
+  },
+
+  actionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 12,
+  },
+
+  actionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#00ff8830",
+    backgroundColor: "#0f2a1d",
+  },
+
+  actionText: {
+    color: "#00ff88",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  publicarAction: {
+    backgroundColor: "#00ff88",
+    borderColor: "#00ff88",
+  },
+
+  publicarActionText: {
+    color: "#000",
+    fontSize: 12,
+    fontWeight: "bold",
   },
 });

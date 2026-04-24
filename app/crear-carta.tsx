@@ -115,7 +115,7 @@ export default function BuscarCarta() {
           keyExtractor={(item) => item.id_carta}
           numColumns={2}
           columnWrapperStyle={{ justifyContent: "space-between" }}
-          contentContainerStyle={{ paddingBottom: 100 }} // 👈 espacio para FAB
+          contentContainerStyle={{ paddingBottom: 100 }}
           renderItem={({ item }) => {
             const id = item.id_carta;
             const count = selected[id] || 0;
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
 
   fab: {
     position: "absolute",
-    bottom: 20, // 👈 dinámico y correcto
+    bottom: 20,
     left: 20,
     width: 60,
     height: 60,

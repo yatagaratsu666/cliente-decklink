@@ -50,7 +50,7 @@ export default function LoteDetalle() {
 
   const abrirModal = async () => {
     const data = await getCartas();
-    setInventario(data);
+    setInventario(data || []);
     setModalVisible(true);
   };
 

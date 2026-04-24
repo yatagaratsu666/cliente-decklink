@@ -2,6 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useEffect, useState } from "react";
 import { AuthContextType, AuthResponse, User } from "../types/auth";
 import { api } from "./api";
+import { eventBus } from "./eventBus";
+import socket from "./socket";
 
 export const AuthContext = createContext<AuthContextType>(
   {} as AuthContextType,
@@ -53,12 +55,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const logout = async () => {
-    setUser(null);
-    setToken(null);
+    try {
+      await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem("user");
 
-    await AsyncStorage.removeItem("token");
-    await AsyncStorage.removeItem("user");
+      socket.disconnect();
+
+      setUser(null);
+      setToken(null);
+    } catch (error) {
+      console.log("Error logout:", error);
+    }
   };
+
+  useEffect(() => {
+    const handleLogout = () => {
+      console.log("🚪 Logout global recibido");
+
+      socket.disconnect();
+
+      setUser(null);
+      setToken(null);
+    };
+
+    eventBus.on("logout", handleLogout);
+
+    return () => {
+      eventBus.off("logout", handleLogout);
+    };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, token, loading, login, logout }}>

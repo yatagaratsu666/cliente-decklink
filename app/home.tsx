@@ -31,7 +31,7 @@ export default function Home() {
   const cargarCartas = async () => {
     try {
       const data = await getCartas();
-      setCartas(data);
+      setCartas(data || []);
     } catch (error) {
       console.log(error);
     } finally {

@@ -1,4 +1,5 @@
 import { AuthContext, AuthProvider } from "@/src/service/auth";
+import socket from "@/src/service/socket";
 import { getProfile } from "@/src/service/usuario";
 import { User } from "@/src/types/usuario";
 import { Ionicons } from "@expo/vector-icons";
@@ -42,17 +43,37 @@ function RootLayout() {
     ]).start();
   };
 
+  const handleLogout = () => {
+    socket.disconnect();
+    logout();
+    router.replace("/");
+  };
+
   useEffect(() => {
+    let isMounted = true;
+
     const loadUser = async () => {
       try {
         const data = await getProfile();
-        setUser(data);
-      } catch (error) {
-        console.log("Error cargando perfil", error);
+
+        if (isMounted) {
+          setUser(data);
+        }
+      } catch (error: any) {
+        if (
+          error?.response?.status !== 401 &&
+          error?.response?.status !== 403
+        ) {
+          console.log("Error cargando perfil", error);
+        }
       }
     };
 
     if (token) loadUser();
+
+    return () => {
+      isMounted = false;
+    };
   }, [token]);
 
   const closeMenu = () => {
@@ -89,11 +110,11 @@ function RootLayout() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#050805" }}>
-      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => {
             logout();
+            handleLogout();
             router.replace("/");
           }}
         >
@@ -113,7 +134,6 @@ function RootLayout() {
         </TouchableOpacity>
       </View>
 
-      {/* PANTALLAS */}
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="home" />
         <Stack.Screen name="lotes" />
@@ -121,22 +141,21 @@ function RootLayout() {
         <Stack.Screen name="lote-detalle" />
       </Stack>
 
-      {/* MENU */}
       {menuOpen && (
         <View style={StyleSheet.absoluteFill}>
-          {/* OVERLAY (no tapa header) */}
           <Animated.View style={[styles.overlayBg, { opacity: opacityAnim }]}>
             <TouchableOpacity style={{ flex: 1 }} onPress={closeMenu} />
           </Animated.View>
 
-          {/* MENU DESLIZANTE */}
           <Animated.View
             style={[styles.menu, { transform: [{ translateX: slideAnim }] }]}
           >
             <View style={styles.profileSection}>
               <Image
                 source={{
-                  uri: user?.foto_perfil || "https://via.placeholder.com/100",
+                  uri:
+                    user?.foto_perfil ||
+                    "https://i.pinimg.com/736x/d3/22/48/d322487946b0c6c2deb0fcf38b77e963.jpg",
                 }}
                 style={styles.profileImage}
               />
@@ -162,7 +181,20 @@ function RootLayout() {
               <Text style={styles.menuText}>Inicio</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem} onPress={closeMenu}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                if (user?.id_usuario) {
+                  router.push({
+                    pathname: "/user-profile",
+                    params: { id: user.id_usuario },
+                  });
+                } else {
+                  router.push("/user-profile");
+                }
+                closeMenu();
+              }}
+            >
               <Ionicons name="person-outline" size={20} color="#00ff88" />
               <Text style={styles.menuText}>Perfil</Text>
             </TouchableOpacity>
@@ -176,6 +208,20 @@ function RootLayout() {
             >
               <Ionicons name="albums-outline" size={20} color="#00ff88" />
               <Text style={styles.menuText}>Inventario</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                router.push("/lista-propuesta");
+                closeMenu();
+              }}
+            >
+              <Ionicons
+                name="swap-horizontal-outline"
+                size={20}
+                color="#00ff88"
+              />
+              <Text style={styles.menuText}>Propuestas</Text>
             </TouchableOpacity>
           </Animated.View>
         </View>

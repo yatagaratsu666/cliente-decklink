@@ -10,8 +10,16 @@ import {
   View,
 } from "react-native";
 
-import { publicarCarta } from "@/src/service/cartas";
+import { getCartas, publicarCarta } from "@/src/service/cartas";
+import { crearPropuesta } from "@/src/service/propuesta";
 import { Props } from "@/src/types/props";
+import { useRouter } from "expo-router";
+import { ScrollView } from "react-native";
+
+import { getLotes } from "@/src/service/lote";
+import { despublicarCarta } from "@/src/service/publicacion";
+import { getProfile } from "@/src/service/usuario";
+import { useEffect } from "react";
 
 export default function CartaModal({
   visible,
@@ -23,11 +31,124 @@ export default function CartaModal({
   onQuitar,
   modo = "inventario",
   cantidad = 0,
+  esPropia: esPropiaProp,
 }: Props) {
   const [precioModal, setPrecioModal] = useState(false);
   const [precio, setPrecio] = useState("");
+  const [ofertaModal, setOfertaModal] = useState(false);
+  const [mensaje, setMensaje] = useState(
+    "Hola, me interesaría cambiar esta carta",
+  );
+  const [cartaSeleccionada, setCartaSeleccionada] = useState<any>(null);
+  const [misCartas, setMisCartas] = useState<any[]>([]);
+  const router = useRouter();
+  const [usuarioLogeado, setUsuarioLogeado] = useState<any>(null);
+
+  const [tipoOferta, setTipoOferta] = useState<"carta" | "lote">("carta");
+  const [misLotes, setMisLotes] = useState<any[]>([]);
+  const [seleccionado, setSeleccionado] = useState<any>(null);
+
+  useEffect(() => {
+    const cargarUsuario = async () => {
+      const user = await getProfile();
+      setUsuarioLogeado(user);
+    };
+
+    cargarUsuario();
+  }, []);
+
+  const cargarDatos = async () => {
+    const cartas = await getCartas();
+    const lotes = await getLotes();
+
+    setMisCartas(cartas || []);
+    setMisLotes(lotes || []);
+  };
+
+  const eliminarPublicacionCarta = async () => {
+    Alert.alert("Eliminar publicación", "¿Estás seguro?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Eliminar",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            if (carta && "id_publicacion" in carta) {
+              await despublicarCarta(carta.id_publicacion);
+              onEliminar?.(carta.id_publicacion);
+              setPrecioModal(false);
+            }
+            onClose();
+          } catch (e) {
+            Alert.alert("Error", "No se pudo eliminar");
+          }
+        },
+      },
+    ]);
+  };
+
+  const abrirOferta = async () => {
+    await cargarDatos();
+    setOfertaModal(true);
+  };
+
+  const enviarPropuesta = async () => {
+    try {
+      if (!seleccionado) {
+        Alert.alert("Selecciona algo");
+        return;
+      }
+
+      if (!usuarioLogeado) {
+        Alert.alert("Error", "Usuario no cargado");
+        return;
+      }
+
+      if (!carta || !("id_publicacion" in carta)) {
+        Alert.alert("Error con la publicación");
+        return;
+      }
+
+      const payload: any = {
+        id_publicacion: carta.id_publicacion,
+        id_usuario: usuarioLogeado.id_usuario,
+        mensaje,
+      };
+
+      if (tipoOferta === "carta") {
+        payload.id_carta_propone = seleccionado.id_carta;
+      } else {
+        payload.id_lote_propone = seleccionado.id_lote;
+      }
+
+      console.log("TIPO:", tipoOferta);
+      console.log("SELECCIONADO:", seleccionado);
+      console.log("ID LOTE:", seleccionado?.id_carta);
+
+      const result = await crearPropuesta(payload);
+
+      setOfertaModal(false);
+      onClose();
+
+      router.push({
+        pathname: "/chat",
+        params: {
+          chatId: result.data.chatId,
+        },
+      });
+    } catch (error: any) {
+      console.log("ERROR COMPLETO:", error?.response?.data || error);
+      Alert.alert("Error", JSON.stringify(error?.response?.data || error));
+    }
+  };
 
   if (!carta) return null;
+
+  const esPropia =
+    esPropiaProp ??
+    (usuarioLogeado &&
+      "id_usuario" in carta &&
+      carta.id_usuario === usuarioLogeado.id_usuario);
 
   const id = "id_carta" in carta ? carta.id_carta : carta.id_publicacion;
 
@@ -55,8 +176,12 @@ export default function CartaModal({
 
       setPrecioModal(false);
       onClose();
-    } catch (error) {
-      Alert.alert("Error", "No se pudo publicar la carta");
+    } catch (error: any) {
+      if (error.response?.data?.error === "conflicto_publicacion") {
+        Alert.alert("No permitido", "Esta carta ya está en un lote publicado");
+      } else {
+        Alert.alert("Error", "No se pudo publicar la carta");
+      }
     }
   };
 
@@ -85,7 +210,19 @@ export default function CartaModal({
             {modo === "publicado" && (
               <>
                 {"usuario" in carta && carta.usuario && (
-                  <View style={styles.userBlockRight}>
+                  <TouchableOpacity
+                    style={styles.userBlockRight}
+                    onPress={() => {
+                      if (carta.usuario?.id_usuario) {
+                        router.push({
+                          pathname: "/user-profile",
+                          params: { id: carta.usuario.id_usuario },
+                        });
+                      } else {
+                        router.push("/user-profile");
+                      }
+                    }}
+                  >
                     <Image
                       source={{ uri: carta.usuario.foto_perfil }}
                       style={styles.avatarBig}
@@ -100,16 +237,16 @@ export default function CartaModal({
                         ⭐ {carta.usuario.reputacion}
                       </Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 )}
 
                 {"precio" in carta && (
                   <Text style={styles.precio}>${carta.precio ?? 0}</Text>
                 )}
 
-                {"fecha_publicacion" in carta && (
+                {"fecha_creacion" in carta && carta.fecha_creacion && (
                   <Text style={styles.fecha}>
-                    {formatearFecha(carta.fecha_publicacion)}
+                    Publicado el {formatearFecha(carta.fecha_creacion)}
                   </Text>
                 )}
               </>
@@ -168,17 +305,35 @@ export default function CartaModal({
                 </TouchableOpacity>
               )}
 
-              {modo === "publicado" && (
+              {modo === "publicado" && !esPropia && (
                 <View style={styles.marketButtons}>
                   <TouchableOpacity style={styles.buyBtn}>
                     <Text style={styles.buyText}>Comprar</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.offerBtn}>
+                  <TouchableOpacity
+                    style={styles.offerBtn}
+                    onPress={abrirOferta}
+                  >
                     <Text style={styles.offerText}>Ofertar</Text>
                   </TouchableOpacity>
                 </View>
               )}
+
+              {modo === "publicado" &&
+                esPropia &&
+                "id_publicacion" in carta && (
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => {
+                      if (carta && "id_publicacion" in carta) {
+                        eliminarPublicacionCarta();
+                      }
+                    }}
+                  >
+                    <Text style={styles.deleteText}>Eliminar publicación</Text>
+                  </TouchableOpacity>
+                )}
 
               {modo === "busqueda" && (
                 <View style={styles.counterBox}>
@@ -238,6 +393,86 @@ export default function CartaModal({
                 onPress={confirmarPublicacion}
               >
                 <Text style={styles.confirmText}>Publicar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={ofertaModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.offerModal}>
+            <Text style={styles.modalTitle}>Crear Propuesta</Text>
+
+            {/* SELECTOR */}
+            <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+              <TouchableOpacity
+                style={[
+                  styles.selectorBtn,
+                  tipoOferta === "carta" && styles.selectorActive,
+                ]}
+                onPress={() => setTipoOferta("carta")}
+              >
+                <Text style={styles.selectorText}>Carta</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.selectorBtn,
+                  tipoOferta === "lote" && styles.selectorActive,
+                ]}
+                onPress={() => setTipoOferta("lote")}
+              >
+                <Text style={styles.selectorText}>Lote</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* LISTA */}
+            <ScrollView style={{ maxHeight: 200 }}>
+              {(tipoOferta === "carta" ? misCartas : misLotes).map((item) => (
+                <TouchableOpacity
+                  key={tipoOferta === "carta" ? item.id_carta : item.id_lote}
+                  style={[
+                    styles.cartaItem,
+                    seleccionado === item && styles.cartaSeleccionada,
+                  ]}
+                  onPress={() => setSeleccionado(item)}
+                >
+                  {tipoOferta === "carta" && (
+                    <Image
+                      source={{ uri: item.imagen_url }}
+                      style={styles.cartaMini}
+                    />
+                  )}
+
+                  <Text style={styles.modalText}>
+                    {tipoOferta === "carta" ? item.nombre : item.nombre}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.modalText}>Mensaje</Text>
+
+            <TextInput
+              value={mensaje}
+              onChangeText={setMensaje}
+              multiline
+              style={styles.mensajeInput}
+            />
+
+            <View style={styles.priceButtons}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setOfertaModal(false)}
+              >
+                <Text style={styles.cancelText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmBtn}
+                onPress={enviarPropuesta}
+              >
+                <Text style={styles.confirmText}>Enviar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -523,5 +758,58 @@ const styles = StyleSheet.create({
     color: "#ffffff70",
     fontSize: 12,
     alignSelf: "flex-start",
+  },
+  offerModal: {
+    width: "90%",
+    backgroundColor: "#0d140f",
+    padding: 15,
+    borderRadius: 15,
+  },
+
+  cartaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 10,
+    borderRadius: 10,
+  },
+
+  cartaSeleccionada: {
+    backgroundColor: "#0f2a1d",
+  },
+
+  cartaMini: {
+    width: 40,
+    height: 60,
+    borderRadius: 5,
+  },
+
+  mensajeInput: {
+    width: "100%",
+    backgroundColor: "#0f2a1d",
+    borderWidth: 1,
+    borderColor: "#00ff8850",
+    color: "#fff",
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 10,
+    minHeight: 60,
+  },
+  selectorBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#00ff88",
+    padding: 8,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+
+  selectorActive: {
+    backgroundColor: "#00ff88",
+  },
+
+  selectorText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
 });
